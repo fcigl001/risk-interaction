@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Risk Interconnections - Compact</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            font-size: 1.4em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .risk-diagram {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: 20px 0;
+        }
+
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            stroke: #ddd;
+            stroke-width: 1.5;
+            fill: none;
+            opacity: 0.4;
+            transition: all 0.3s ease;
+        }
+
+        .connection-line.active {
+            stroke: #667eea;
+            stroke-width: 3;
+            opacity: 1;
+        }
+
+        .risk-node {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            border: 3px solid white;
+        }
+
+        .risk-node:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+        }
+
+        .risk-node.active {
+            transform: scale(1.15);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border-color: #667eea;
+            border-width: 4px;
+        }
+
+        .risk-node .icon {
+            font-size: 1.8em;
+            margin-bottom: 3px;
+        }
+
+        .risk-node h3 {
+            color: white;
+            font-size: 0.75em;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            line-height: 1.2;
+        }
+
+        /* Positions */
+        .acquisition {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 110px;
+            height: 110px;
+        }
+
+        .finance {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            top: 5%;
+            left: 15%;
+        }
+
+        .construction {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            top: 5%;
+            right: 15%;
+        }
+
+        .sales {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            bottom: 5%;
+            left: 15%;
+        }
+
+        .marketing {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+            bottom: 5%;
+            right: 15%;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 280px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-box h3 {
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-box .subtitle {
+            color: #666;
+            line-height: 1.6;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .info-box h4 {
+            color: #667eea;
+            font-size: 1em;
+            margin: 20px 0 12px 0;
+        }
+
+        .connection-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+            line-height: 1.6;
+            color: #444;
+            border-left: 3px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+
+        .connection-item:hover {
+            border-left-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .connection-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+        }
+
+        .default-message {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 60px 20px;
+            font-size: 1em;
+        }
+
+        .default-message h4 {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-style: normal;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            .risk-diagram {
+                height: 300px;
+            }
+
+            .risk-node {
+                width: 80px;
+                height: 80px;
+            }
+
+            .acquisition {
+                width: 90px;
+                height: 90px;
+            }
+
+            .risk-node .icon {
+                font-size: 1.5em;
+            }
+
+            .risk-node h3 {
+                font-size: 0.65em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🔗 Risk Interconnections</h2>
+            <p>Click any category to see how risks cascade</p>
+        </div>
+
+        <div class="risk-diagram">
+            <svg id="connections"></svg>
+            
+            <div class="risk-node acquisition" data-risk="acquisition">
+                <div class="icon">🎯</div>
+                <h3>Acquisition<br>Risk</h3>
+            </div>
+
+            <div class="risk-node finance" data-risk="finance">
+                <div class="icon">💰</div>
+                <h3>Finance<br>Risk</h3>
+            </div>
+
+            <div class="risk-node construction" data-risk="construction">
+                <div class="icon">🏗️</div>
+                <h3>Construction<br>Risk</h3>
+            </div>
+
+            <div class="risk-node sales" data-risk="sales">
+                <div class="icon">🏠</div>
+                <h3>Sales<br>Risk</h3>
+            </div>
+
+            <div class="risk-node marketing" data-risk="marketing">
+                <div class="icon">📢</div>
+                <h3>Marketing<br>Risk</h3>
+            </div>
+        </div>
+
+        <div class="info-box" id="infoBox">
+            <div class="default-message">
+                <h4>👆 Click any risk category above</h4>
+                <p>See detailed examples of how each risk triggers and compounds other risks throughout the investment lifecycle</p>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-dot" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                <span>Acquisition</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                <span>Finance</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+                <span>Construction</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
+                <span>Sales</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);"></div>
+                <span>Marketing</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const riskExamples = {
+            acquisition: {
+                title: "Acquisition Risk",
+                icon: "🎯",
+                subtitle: "Risks at the property purchase stage can create ripple effects throughout the entire investment lifecycle.",
+                connections: [
+                    {
+                        to: "Finance Risk",
+                        example: "<strong>Poor Market Timing → Finance Pressure:</strong> Buying at market peak means overpaying. If the market corrects before settlement, the bank's valuation may come in lower than purchase price, requiring additional cash deposit or forcing sale at a loss."
+                    },
+                    {
+                        to: "Construction Risk",
+                        example: "<strong>Developer Due Diligence Failure → Construction Issues:</strong> Insufficient research on developer track record leads to choosing an undercapitalized builder. Mid-project, financial problems emerge causing delays and quality compromises."
+                    },
+                    {
+                        to: "Sales Risk",
+                        example: "<strong>Location Analysis Failure → Sales Difficulty:</strong> Overlooking declining local employment or infrastructure issues during acquisition means the property becomes harder to rent or sell, with longer vacancies and lower returns."
+                    },
+                    {
+                        to: "Marketing Risk",
+                        example: "<strong>Overpriced Acquisition → Marketing Challenges:</strong> Paying too much initially means the property must be priced at the top of the market when renting or selling, limiting the pool of interested tenants/buyers and extending time on market."
+                    }
+                ]
+            },
+            finance: {
+                title: "Finance Risk",
+                icon: "💰",
+                subtitle: "Funding and cash flow problems can force difficult decisions across all other risk areas.",
+                connections: [
+                    {
+                        to: "Acquisition Risk",
+                        example: "<strong>Pre-Approval Expiry → Rushed Acquisition:</strong> When finance pre-approval nears expiry, investors rush into suboptimal properties without proper due diligence, accepting poor terms or overpaying just to secure a deal before approval lapses."
+                    },
+                    {
+                        to: "Construction Risk",
+                        example: "<strong>Cash Flow Pressure → Construction Corners Cut:</strong> Insufficient cash buffer means when construction variations arise, the investor must choose cheaper alternatives or skip quality upgrades, leading to defects and lower finished value."
+                    },
+                    {
+                        to: "Sales Risk",
+                        example: "<strong>Interest Rate Rise → Forced Sale:</strong> Unexpected rate increases make repayments unaffordable. Unable to hold through market downturn, the investor must sell quickly at whatever price the market offers, often at a loss."
+                    },
+                    {
+                        to: "Marketing Risk",
+                        example: "<strong>Negative Cash Flow Stress → Price Desperation:</strong> Bleeding $2,000/month, the investor drops rental price or sale price significantly below market to secure quick tenancy/sale, accepting lower returns out of financial desperation."
+                    }
+                ]
+            },
+            construction: {
+                title: "Construction Risk",
+                icon: "🏗️",
+                subtitle: "Building delays, cost overruns, and quality issues cascade into financial and sales problems.",
+                connections: [
+                    {
+                        to: "Acquisition Risk",
+                        example: "<strong>Construction Delays → Acquisition Timing Miss:</strong> A 6-month construction delay means settlement occurs during a market downturn instead of the anticipated growth phase, locking in losses and eliminating the original acquisition strategy."
+                    },
+                    {
+                        to: "Finance Risk",
+                        example: "<strong>Cost Overruns → Finance Capacity Exhausted:</strong> $25,000 in unexpected variations depletes savings buffer. When the next problem arises (delayed rent, maintenance emergency), there's no financial capacity left, forcing expensive short-term debt."
+                    },
+                    {
+                        to: "Sales Risk",
+                        example: "<strong>Quality Defects → Rental Income Loss:</strong> Poor construction quality becomes apparent after completion. Tenants report problems, leave early, or demand rent reductions. Property sits vacant for months while defects are rectified, destroying projected returns."
+                    },
+                    {
+                        to: "Marketing Risk",
+                        example: "<strong>Construction Delays → Marketing Saturation:</strong> A 4-month delay means your unit completes simultaneously with 15 others from the same development. All hit the rental market at once, creating fierce competition and driving down achievable rents."
+                    }
+                ]
+            },
+            sales: {
+                title: "Sales Risk",
+                icon: "🏠",
+                subtitle: "Difficulty renting or selling creates pressure that affects financing, marketing, and even leads to regretful acquisitions.",
+                connections: [
+                    {
+                        to: "Acquisition Risk",
+                        example: "<strong>Sales Difficulty → Acquisition Decision Regret:</strong> Unable to achieve projected rental income, the investor realizes they fundamentally misjudged the acquisition—the property type, location, or price point doesn't match actual market demand."
+                    },
+                    {
+                        to: "Finance Risk",
+                        example: "<strong>Rental Vacancy → Finance Default Risk:</strong> 3 months vacant means $8,000 in lost income while mortgage payments continue. Emergency credit cards and personal loans are used to cover shortfalls, creating a debt spiral that threatens the entire portfolio."
+                    },
+                    {
+                        to: "Construction Risk",
+                        example: "<strong>Weak Sales Demand → Construction Investigation:</strong> When properties don't sell/rent, closer inspection reveals construction quality issues that weren't apparent initially. The sales problem was actually a construction problem, now requiring expensive rectification."
+                    },
+                    {
+                        to: "Marketing Risk",
+                        example: "<strong>Market Weakness → Marketing Budget Increase:</strong> Soft demand forces higher marketing spend—professional staging, premium photography, multiple agents—turning a profitable investment into a marginal one as costs erode returns just to achieve a sale."
+                    }
+                ]
+            },
+            marketing: {
+                title: "Marketing Risk",
+                icon: "📢",
+                subtitle: "Poor positioning and promotion compound other risks, making good properties perform badly.",
+                connections: [
+                    {
+                        to: "Acquisition Risk",
+                        example: "<strong>Marketing Failure → Acquisition Value Unrealized:</strong> Despite buying well in a good location, poor marketing (bad photos, wrong channels, weak messaging) means the property underperforms. The acquisition was sound, but marketing failure destroyed the returns."
+                    },
+                    {
+                        to: "Finance Risk",
+                        example: "<strong>Extended Marketing Period → Holding Cost Blowout:</strong> 6 months to secure tenant due to poor marketing approach costs $15,000 in lost rent plus ongoing mortgage, rates, and strata. The longer marketing takes, the deeper the financial hole becomes."
+                    },
+                    {
+                        to: "Construction Risk",
+                        example: "<strong>Marketing Competition → Construction Pressure:</strong> Seeing 20 similar properties marketed better, the investor realizes their standard inclusions look dated. Pressure to upgrade finishes mid-construction adds cost and creates variation disputes with builder."
+                    },
+                    {
+                        to: "Sales Risk",
+                        example: "<strong>Poor Positioning → Sales Price Reduction:</strong> Property is marketed to wrong demographic or emphasizes wrong features. After 60 days with no interest, price must be dropped 10% to generate activity—a sales problem created by marketing failure."
+                    }
+                ]
+            }
+        };
+
+        const nodes = document.querySelectorAll('.risk-node');
+        const infoBox = document.getElementById('infoBox');
+        const svg = document.getElementById('connections');
+
+        function drawConnections() {
+            svg.innerHTML = '';
+            const acquisitionNode = document.querySelector('.acquisition');
+            const acquisitionRect = acquisitionNode.getBoundingClientRect();
+            const containerRect = document.querySelector('.risk-diagram').getBoundingClientRect();
+            
+            const centerX = acquisitionRect.left - containerRect.left + acquisitionRect.width / 2;
+            const centerY = acquisitionRect.top - containerRect.top + acquisitionRect.height / 2;
+
+            ['finance', 'construction', 'sales', 'marketing'].forEach(risk => {
+                const node = document.querySelector(`.${risk}`);
+                const rect = node.getBoundingClientRect();
+                const x = rect.left - containerRect.left + rect.width / 2;
+                const y = rect.top - containerRect.top + rect.height / 2;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', centerX);
+                line.setAttribute('y1', centerY);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', y);
+                line.classList.add('connection-line');
+                line.setAttribute('data-connection', risk);
+                svg.appendChild(line);
+            });
+        }
+
+        function showRiskInfo(risk) {
+            const data = riskExamples[risk];
+            let html = `
+                <h3>${data.icon} ${data.title}</h3>
+                <div class="subtitle">${data.subtitle}</div>
+                <h4>How This Risk Triggers Others:</h4>
+            `;
+
+            data.connections.forEach(conn => {
+                html += `<div class="connection-item">${conn.example}</div>`;
+            });
+
+            infoBox.innerHTML = html;
+
+            // Highlight connections
+            document.querySelectorAll('.connection-line').forEach(line => {
+                line.classList.remove('active');
+            });
+
+            // Highlight relevant connections based on risk
+            if (risk === 'acquisition') {
+                document.querySelectorAll('.connection-line').forEach(line => {
+                    line.classList.add('active');
+                });
+            } else {
+                const line = document.querySelector(`[data-connection="${risk}"]`);
+                if (line) line.classList.add('active');
+            }
+        }
+
+        nodes.forEach(node => {
+            node.addEventListener('click', () => {
+                const risk = node.dataset.risk;
+                
+                nodes.forEach(n => n.classList.remove('active'));
+                node.classList.add('active');
+                
+                showRiskInfo(risk);
+            });
+        });
+
+        drawConnections();
+        window.addEventListener('resize', drawConnections);
+    </script>
+</body>
+</html>
